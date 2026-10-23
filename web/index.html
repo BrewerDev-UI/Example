@@ -1,0 +1,597 @@
+<title>Daily Index Cards</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">
+<style>
+/* Layout: one narrow column styled like an 8-bit console game. Title screen, world map, stages, score table. */
+:root {
+  color-scheme: dark;
+  --bg: #0d0b26;
+  --panel: #1b1846;
+  --edge: #4c4aa8;
+  --ink: #f4f1ff;
+  --muted: #a3a0d8;
+  --gold: #f8c838;
+  --gold-dk: #b86f0a;
+  --gold-ink: #2a1a00;
+  --card: #5a3ec8;
+  --card-dk: #2f2080;
+  --paper: #f3ead2;
+  --paper-ink: #20183a;
+  --rule: #cfc3a0;
+  --margin: #e47a7a;
+  --good: #63c74d;
+  --bad: #e43b44;
+  --cyan: #2ce8f5;
+  --drop: rgba(0, 0, 0, .55);
+  --f-pixel: "Press Start 2P", ui-monospace, Menlo, Consolas, monospace;
+  --f-body: "VT323", ui-monospace, Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 22px; line-height: 1.2; }
+body::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 50;
+  background: repeating-linear-gradient(to bottom, transparent 0 2px, rgba(0,0,0,.18) 2px 4px); }
+.wrap { max-width: 560px; margin: 0 auto; padding-block: 24px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 26px; }
+button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; padding: 0; }
+button:focus-visible, .card:focus-visible { outline: 4px solid var(--cyan); outline-offset: 6px; }
+svg.pix { shape-rendering: crispEdges; display: block; }
+.pixel { font-family: var(--f-pixel); text-transform: uppercase; letter-spacing: .04em; }
+.lbl { font-family: var(--f-pixel); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
+/* Pixel frame: notched corners from four edge shadows, plus a hard drop shadow. */
+.px { background: var(--panel);
+  box-shadow: 0 -4px 0 0 var(--edge), 0 4px 0 0 var(--edge), -4px 0 0 0 var(--edge), 4px 0 0 0 var(--edge), 8px 8px 0 0 var(--drop); }
+
+/* HUD */
+.hud { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.counters { display: flex; gap: 18px; align-items: center; }
+.counter { display: flex; align-items: center; gap: 8px; }
+.counter b { font-family: var(--f-pixel); font-size: 14px; font-variant-numeric: tabular-nums; }
+.sound { font-family: var(--f-pixel); font-size: 9px; letter-spacing: .08em; padding: 8px 10px; color: var(--muted); }
+.sound b { color: var(--good); }
+.sound.off b { color: var(--bad); }
+
+/* Title screen */
+.title { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; padding-block: 8px 4px; }
+.title h1 { margin: 0; font-family: var(--f-pixel); font-weight: 400; font-size: clamp(30px, 10vw, 48px); line-height: 1.15; color: var(--gold);
+  text-shadow: 4px 4px 0 var(--gold-dk), 8px 8px 0 var(--card-dk); letter-spacing: .02em; text-transform: uppercase; }
+.title h1 span { display: block; color: var(--ink); text-shadow: 4px 4px 0 var(--card), 8px 8px 0 var(--card-dk); }
+.title .date { font-family: var(--f-pixel); font-size: 10px; color: var(--cyan); letter-spacing: .1em; }
+.blink { animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Week of ? blocks */
+.week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+.day { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.blk { width: 100%; max-width: 40px; aspect-ratio: 1; display: grid; place-items: center; background: var(--panel);
+  box-shadow: inset -4px -4px 0 rgba(0,0,0,.35), inset 4px 4px 0 rgba(255,255,255,.08);
+  font-family: var(--f-pixel); font-size: 10px; color: var(--muted); }
+.blk.done { background: var(--gold); color: var(--gold-ink); box-shadow: inset -4px -4px 0 var(--gold-dk), inset 4px 4px 0 #fff3a8; }
+.blk.today { outline: 4px solid var(--cyan); outline-offset: 2px; }
+
+.banner { padding: 14px 16px; display: flex; gap: 12px; align-items: center; }
+.banner .pixel { font-size: 11px; color: var(--good); }
+
+h2 { margin: 0; font-family: var(--f-pixel); font-weight: 400; font-size: 14px; line-height: 1.5; letter-spacing: .04em; text-transform: uppercase; text-wrap: balance; }
+.section { display: flex; flex-direction: column; gap: 16px; }
+.note { margin: 0; color: var(--muted); font-size: 20px; }
+
+/* World select */
+.worlds { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 18px; }
+.world { text-align: left; padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; transition: transform .1s steps(2); min-width: 0; }
+.world:hover { transform: translate(-2px, -2px); }
+.world:active { transform: translate(4px, 4px); }
+.world .lbl { color: var(--cyan); }
+.world strong { font-family: var(--f-pixel); font-weight: 400; font-size: 11px; line-height: 1.5; text-transform: uppercase; }
+.world small { color: var(--muted); font-size: 19px; line-height: 1.05; }
+.world.pick { box-shadow: 0 -4px 0 0 var(--gold), 0 4px 0 0 var(--gold), -4px 0 0 0 var(--gold), 4px 0 0 0 var(--gold), 8px 8px 0 0 var(--drop); }
+.world.pick .lbl { color: var(--gold); }
+.world.warp { background: var(--card-dk); }
+
+/* Score table */
+.scores { padding: 14px 16px; overflow-x: auto; }
+.scores table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.scores th { font-family: var(--f-pixel); font-weight: 400; font-size: 9px; letter-spacing: .1em; color: var(--muted); text-align: left; padding: 0 8px 10px 0; }
+.scores td { padding: 4px 8px 4px 0; font-size: 20px; vertical-align: baseline; }
+.scores td:first-child { color: var(--cyan); white-space: nowrap; }
+.scores td:last-child, .scores th:last-child { text-align: right; padding-right: 0; white-space: nowrap; color: var(--gold); }
+
+/* Session */
+.bar { display: flex; align-items: center; gap: 14px; }
+.back { font-family: var(--f-pixel); text-transform: uppercase; font-size: 9px; letter-spacing: .08em; padding: 8px 10px; color: var(--muted); }
+.steps { display: flex; gap: 6px; flex: 1; }
+.steps i { flex: 1; height: 12px; background: var(--panel); box-shadow: inset -2px -2px 0 rgba(0,0,0,.4); }
+.steps i.on { background: var(--card); }
+.steps i.q.on { background: var(--gold); }
+
+.lesson-head { display: flex; flex-direction: column; gap: 10px; }
+.lesson-head .lbl { color: var(--cyan); }
+.lesson-head h2 { font-size: 16px; }
+.lesson-head p { margin: 0; color: var(--muted); }
+
+.card { position: relative; min-height: 270px; perspective: 1200px; cursor: pointer; }
+.card-inner { position: absolute; inset: 0; transition: transform .42s steps(7, end); transform-style: preserve-3d; }
+.card.flipped .card-inner { transform: rotateY(180deg); }
+.face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; padding: 46px 22px 22px; display: flex; flex-direction: column; gap: 10px; overflow: auto; }
+.face.front { justify-content: center; align-items: center; text-align: center; background: var(--card);
+  background-image: radial-gradient(rgba(255,255,255,.09) 1px, transparent 1.5px); background-size: 8px 8px;
+  box-shadow: inset 0 0 0 4px var(--card-dk), inset 8px 8px 0 rgba(255,255,255,.12), 8px 8px 0 0 var(--drop); }
+.face.backside { transform: rotateY(180deg); color: var(--paper-ink); padding-left: 46px; background: var(--paper);
+  background-image: linear-gradient(to right, transparent 32px, var(--margin) 32px, var(--margin) 34px, transparent 34px),
+    repeating-linear-gradient(to bottom, transparent 0 28px, var(--rule) 28px 30px);
+  background-position: 0 0, 0 16px;
+  box-shadow: inset 0 0 0 4px var(--paper-ink), 8px 8px 0 0 var(--drop); }
+.face .top { position: absolute; top: 16px; left: 22px; right: 18px; display: flex; justify-content: space-between; }
+.face.backside .top { left: 46px; }
+.face.backside .lbl { color: #6b5f86; }
+.front .lbl { color: #d6ccff; }
+.front .term { font-family: var(--f-pixel); font-size: clamp(14px, 4.2vw, 19px); line-height: 1.6; text-transform: uppercase; text-wrap: balance; color: #fff; text-shadow: 3px 3px 0 var(--card-dk); }
+.backside .term { font-family: var(--f-pixel); font-size: 11px; line-height: 1.6; text-transform: uppercase; color: var(--card); }
+.backside p { margin: 0; font-size: 24px; line-height: 30px; }
+.hint { color: var(--muted); font-size: 20px; align-self: center; }
+
+.actions { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+.btn { font-family: var(--f-pixel); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; line-height: 1.4;
+  background: var(--gold); color: var(--gold-ink); padding: 14px 18px 18px;
+  box-shadow: inset 0 -4px 0 var(--gold-dk), 0 -4px 0 0 var(--gold-ink), 0 4px 0 0 var(--gold-ink), -4px 0 0 0 var(--gold-ink), 4px 0 0 0 var(--gold-ink); }
+.btn:active { transform: translateY(4px); padding: 16px 18px; box-shadow: 0 -4px 0 0 var(--gold-ink), 0 4px 0 0 var(--gold-ink), -4px 0 0 0 var(--gold-ink), 4px 0 0 0 var(--gold-ink); }
+.btn.ghost { background: var(--panel); color: var(--ink); box-shadow: inset 0 -4px 0 rgba(0,0,0,.4), 0 -4px 0 0 var(--edge), 0 4px 0 0 var(--edge), -4px 0 0 0 var(--edge), 4px 0 0 0 var(--edge); }
+
+.q { margin: 0; font-size: 28px; line-height: 1.15; text-wrap: balance; }
+.opts { display: flex; flex-direction: column; gap: 16px; }
+.opt { text-align: left; padding: 12px 14px; font-size: 23px; line-height: 1.1; display: flex; gap: 14px; align-items: center; }
+.opt .k { flex: none; width: 30px; height: 30px; display: grid; place-items: center; font-family: var(--f-pixel); font-size: 11px; background: var(--edge); color: var(--ink); }
+.opt:hover:not(:disabled) .k { background: var(--gold); color: var(--gold-ink); }
+.opt:disabled { cursor: default; }
+.opt.right { box-shadow: 0 -4px 0 0 var(--good), 0 4px 0 0 var(--good), -4px 0 0 0 var(--good), 4px 0 0 0 var(--good), 8px 8px 0 0 var(--drop); }
+.opt.right .k { background: var(--good); color: var(--gold-ink); }
+.opt.wrong { box-shadow: 0 -4px 0 0 var(--bad), 0 4px 0 0 var(--bad), -4px 0 0 0 var(--bad), 4px 0 0 0 var(--bad), 8px 8px 0 0 var(--drop); }
+.opt.wrong .k { background: var(--bad); }
+.opt.dim { opacity: .55; }
+.verdict { display: flex; align-items: center; gap: 10px; font-family: var(--f-pixel); font-size: 16px; }
+.verdict.good { color: var(--good); }
+.verdict.bad { color: var(--bad); }
+.pop { animation: pop .3s steps(3); }
+@keyframes pop { 0% { transform: translateY(8px); } 50% { transform: translateY(-6px); } 100% { transform: none; } }
+.why { margin: 0; padding: 12px 16px; font-size: 21px; }
+
+/* Stage clear */
+.finish { padding: 30px 20px 26px; display: flex; flex-direction: column; gap: 18px; align-items: center; text-align: center; }
+.finish h1 { margin: 0; font-family: var(--f-pixel); font-weight: 400; font-size: clamp(20px, 6.5vw, 30px); color: var(--gold); text-shadow: 4px 4px 0 var(--gold-dk); text-transform: uppercase; }
+.stars { display: flex; gap: 14px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; }
+.stat { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.stat b { font-family: var(--f-pixel); font-size: 16px; font-variant-numeric: tabular-nums; }
+
+.loading { display: flex; flex-direction: column; gap: 16px; padding: 48px 0; align-items: center; text-align: center; }
+.dots { display: flex; gap: 10px; }
+.dots i { width: 16px; height: 16px; background: var(--gold); animation: blink 1.2s steps(1) infinite; }
+.dots i:nth-child(2) { animation-delay: .4s; } .dots i:nth-child(3) { animation-delay: .8s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .card-inner, .world { transition: none; }
+  .blink, .dots i, .pop { animation: none; }
+}
+</style>
+
+<div class="wrap" id="app"></div>
+
+<script>
+const TOPICS = [
+  { id: "science", name: "Science", blurb: "How the physical world works" },
+  { id: "history", name: "History", blurb: "Moments that changed things" },
+  { id: "words", name: "Words", blurb: "Etymology and useful vocab" },
+  { id: "space", name: "Space", blurb: "Planets, stars, the cosmos" },
+  { id: "mind", name: "Psychology", blurb: "Why we think what we think" },
+  { id: "nature", name: "Nature", blurb: "Animals, plants, ecosystems" },
+  { id: "tech", name: "Tech", blurb: "How everyday tech actually works" },
+  { id: "art", name: "Art & Music", blurb: "Makers, movements, techniques" },
+  { id: "money", name: "Money", blurb: "Economics in plain terms" },
+];
+
+// Built-in lessons, used when Claude can't be reached from this view.
+const BANK = {
+  science: { title: "Why ice floats", hook: "Most solids sink in their own liquid. Water is the odd one out.", cards: [
+    { front: "Hydrogen bonds", back: "Weak attractions between water molecules. As water freezes they lock molecules into an open hexagonal lattice." },
+    { front: "Density of ice", back: "That open lattice makes ice about 9% less dense than liquid water, so it floats." },
+    { front: "Why lakes survive winter", back: "Floating ice insulates the water below, which stays near 4 °C, the temperature where water is densest." }],
+    quiz: [
+    { q: "Roughly how much less dense is ice than liquid water?", options: ["1%", "9%", "25%", "50%"], answer: 1, why: "Ice is about 0.92 g/cm³ versus 1.00 for water." },
+    { q: "What structure do water molecules form when they freeze?", options: ["A tight cubic pack", "A random glass", "An open hexagonal lattice", "Long chains"], answer: 2, why: "Hydrogen bonds hold molecules apart in a hexagonal pattern." },
+    { q: "At about what temperature is liquid water densest?", options: ["0 °C", "4 °C", "10 °C", "100 °C"], answer: 1, why: "Water is densest near 4 °C, so that water sinks to lake bottoms." }] },
+  history: { title: "The printing press", hook: "Around 1450, Gutenberg made copying text cheap, and Europe changed fast.", cards: [
+    { front: "Movable type", back: "Individual metal letters that could be arranged, inked, printed and reused. Gutenberg cast them from a lead-tin-antimony alloy." },
+    { front: "The Gutenberg Bible", back: "Finished around 1455 in Mainz. About 180 copies were printed; 49 are known to survive." },
+    { front: "The information boom", back: "By 1500, presses across Europe had produced millions of books, helping fuel the Reformation and the Scientific Revolution." }],
+    quiz: [
+    { q: "In which city did Gutenberg print his Bible?", options: ["Paris", "Venice", "Mainz", "London"], answer: 2, why: "Gutenberg worked in Mainz, in present-day Germany." },
+    { q: "What made movable type efficient?", options: ["Letters were reusable", "It needed no ink", "It printed in color", "It used wooden pages"], answer: 0, why: "Letters were rearranged and reused for page after page." },
+    { q: "About how many Gutenberg Bibles were printed?", options: ["12", "180", "2,000", "20,000"], answer: 1, why: "Around 180 copies, on paper and vellum." }] },
+  words: { title: "Words from mistakes", hook: "Some everyday words exist because someone heard or wrote one wrong.", cards: [
+    { front: "An apron", back: "Originally \"a napron\". People heard it as \"an apron\" and the n moved. This is called rebracketing." },
+    { front: "Rebracketing", back: "When a word boundary shifts in speech. \"A nadder\" became \"an adder\" the same way." },
+    { front: "Nickname", back: "It went the other way: \"an ekename\" (an extra name) became \"a nekename\", then nickname." }],
+    quiz: [
+    { q: "What did \"an apron\" used to be?", options: ["An aperon", "A napron", "An appron", "A pron"], answer: 1, why: "The n from \"napron\" slid onto the article." },
+    { q: "What is it called when a word boundary shifts like this?", options: ["Rebracketing", "Backformation", "Metathesis", "Elision"], answer: 0, why: "Rebracketing, also called juncture loss." },
+    { q: "What did \"eke\" mean in \"ekename\"?", options: ["Small", "Secret", "Also, extra", "Funny"], answer: 2, why: "\"Eke\" meant also or in addition." }] },
+  space: { title: "A day on Venus", hook: "Venus spins so slowly that its day is longer than its year.", cards: [
+    { front: "Sidereal day", back: "Venus takes about 243 Earth days to rotate once, the slowest spin of any planet." },
+    { front: "Its year", back: "Venus orbits the Sun in about 225 Earth days, so one rotation outlasts one orbit." },
+    { front: "Retrograde spin", back: "Venus rotates backwards compared with most planets, so the Sun rises in the west there." }],
+    quiz: [
+    { q: "How long does Venus take to rotate once?", options: ["24 hours", "59 days", "243 days", "365 days"], answer: 2, why: "About 243 Earth days." },
+    { q: "Which is longer on Venus?", options: ["Its year", "Its rotation", "They're equal", "Neither is measured"], answer: 1, why: "Rotation is about 243 days; an orbit is about 225." },
+    { q: "Where does the Sun rise on Venus?", options: ["East", "West", "North", "It never rises"], answer: 1, why: "Its backwards spin makes the Sun rise in the west." }] },
+  mind: { title: "The spacing effect", hook: "You remember more when you study a little, then wait, then review.", cards: [
+    { front: "The spacing effect", back: "Reviews spread out over time beat the same amount of study crammed into one session." },
+    { front: "Ebbinghaus", back: "In the 1880s Hermann Ebbinghaus tested himself on nonsense syllables and charted how fast memories fade." },
+    { front: "The forgetting curve", back: "Memory drops steeply at first, then levels off. Each well-timed review makes the curve flatter." }],
+    quiz: [
+    { q: "Who first charted the forgetting curve?", options: ["Freud", "Ebbinghaus", "Pavlov", "Skinner"], answer: 1, why: "Hermann Ebbinghaus, using himself as the subject." },
+    { q: "What did Ebbinghaus memorize in his experiments?", options: ["Poems", "Phone numbers", "Nonsense syllables", "Faces"], answer: 2, why: "Nonsense syllables removed the help of meaning." },
+    { q: "What does spaced review do to the forgetting curve?", options: ["Flattens it", "Steepens it", "Reverses it", "Nothing"], answer: 0, why: "Each review slows how fast you forget." }] },
+  nature: { title: "Octopus brains", hook: "An octopus does a lot of its thinking in its arms.", cards: [
+    { front: "Distributed neurons", back: "An octopus has about 500 million neurons, and roughly two-thirds of them are in its arms." },
+    { front: "Arms that decide", back: "Each arm can taste, feel and react to objects on its own, without waiting on the central brain." },
+    { front: "Three hearts", back: "Two hearts pump blood through the gills and one sends it to the rest of the body. The blood is blue from copper." }],
+    quiz: [
+    { q: "Where are most of an octopus's neurons?", options: ["Central brain", "Arms", "Eyes", "Gills"], answer: 1, why: "About two-thirds are in the arms." },
+    { q: "How many hearts does an octopus have?", options: ["One", "Two", "Three", "Eight"], answer: 2, why: "Two for the gills, one for the body." },
+    { q: "Why is octopus blood blue?", options: ["Iron", "Copper", "Cold water", "Low oxygen"], answer: 1, why: "It uses copper-based hemocyanin." }] },
+  tech: { title: "How GPS finds you", hook: "Your phone works out where it is by timing radio signals from space.", cards: [
+    { front: "Timed signals", back: "Each GPS satellite broadcasts its position and the exact time. Your receiver measures how long each signal took to arrive." },
+    { front: "Why four satellites", back: "Three distances fix a position. A fourth corrects the receiver's own cheap clock, so you need at least four." },
+    { front: "Relativity fix", back: "Satellite clocks run about 38 microseconds a day fast relative to the ground, so they are adjusted to match." }],
+    quiz: [
+    { q: "How many satellites does a receiver need for a full fix?", options: ["One", "Two", "Three", "Four"], answer: 3, why: "Three for position, one more to correct the receiver's clock." },
+    { q: "What does the receiver actually measure?", options: ["Signal travel time", "Signal color", "Satellite speed", "Cell tower IDs"], answer: 0, why: "Travel time times the speed of light gives distance." },
+    { q: "About how far off would satellite clocks drift each day without correction?", options: ["38 nanoseconds", "38 microseconds", "38 milliseconds", "38 seconds"], answer: 1, why: "About 38 µs a day, which would add kilometers of error." }] },
+  art: { title: "Why A is 440 Hz", hook: "Orchestras tune to the same note worldwide because of an agreement made in 1939.", cards: [
+    { front: "Concert pitch", back: "The A above middle C is tuned to 440 vibrations per second. A 1939 conference in London set it as the standard." },
+    { front: "The octave", back: "Doubling a frequency raises a note one octave. The next A up is 880 Hz, the one below is 220 Hz." },
+    { front: "Equal temperament", back: "Western tuning splits the octave into 12 equal semitones. Each step raises the frequency by about 6%." }],
+    quiz: [
+    { q: "What frequency is the A above middle C in standard tuning?", options: ["220 Hz", "432 Hz", "440 Hz", "880 Hz"], answer: 2, why: "A440 is the international standard." },
+    { q: "What happens to frequency when you go up one octave?", options: ["It adds 100 Hz", "It doubles", "It halves", "It stays the same"], answer: 1, why: "An octave is a 2:1 frequency ratio." },
+    { q: "How many semitones are in an octave in equal temperament?", options: ["7", "8", "10", "12"], answer: 3, why: "Twelve equal steps make up one octave." }] },
+  money: { title: "The rule of 72", hook: "One quick division tells you how fast money doubles.", cards: [
+    { front: "Compound interest", back: "You earn interest on your interest, not just on what you put in, so growth speeds up over time." },
+    { front: "The rule of 72", back: "Divide 72 by the yearly percentage rate to estimate how many years it takes money to double." },
+    { front: "It works on prices too", back: "At 3% inflation, prices double in about 24 years, so the same money buys half as much." }],
+    quiz: [
+    { q: "At 6% a year, about how long until money doubles?", options: ["6 years", "12 years", "20 years", "72 years"], answer: 1, why: "72 ÷ 6 = 12 years." },
+    { q: "What makes compound interest grow faster than simple interest?", options: ["Lower fees", "Interest earns interest", "Higher taxes", "Fixed payments"], answer: 1, why: "Each year's interest is added to the base for the next." },
+    { q: "At 3% inflation, roughly when do prices double?", options: ["3 years", "10 years", "24 years", "72 years"], answer: 2, why: "72 ÷ 3 = 24 years." }] },
+};
+
+// ---------- dates ----------
+const pad = n => String(n).padStart(2, "0");
+const dayKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const shift = (key, n) => { const [y, m, d] = key.split("-").map(Number); return dayKey(new Date(y, m - 1, d + n)); };
+const TODAY = dayKey();
+const dayNum = Math.floor(new Date(TODAY + "T12:00:00").getTime() / 864e5);
+const SUGGESTED = TOPICS[dayNum % TOPICS.length].id;
+const worldOf = id => TOPICS.findIndex(t => t.id === id) + 1;
+
+// ---------- state ----------
+let progress = { streak: 0, lastDay: null, total: 0, coins: 0, history: [] };
+let progressRef = null;
+let sample = null;
+let view = { name: "home" };
+
+function readLocal() { try { return JSON.parse(localStorage.getItem("daily-index") || "null"); } catch { return null; } }
+function writeLocal() { try { localStorage.setItem("daily-index", JSON.stringify(progress)); } catch {} }
+async function save() {
+  writeLocal();
+  if (progressRef) { try { await progressRef.set(progress); } catch {} }
+}
+// Older saves have no coin count; start it from the scores already logged.
+function normalize(p) { if (typeof p.coins !== "number") p.coins = p.history.reduce((n, h) => n + (h.score || 0), 0); return p; }
+const liveStreak = () => (progress.lastDay === TODAY || progress.lastDay === shift(TODAY, -1)) ? progress.streak : 0;
+const doneToday = () => progress.lastDay === TODAY;
+
+function recordSession(lesson, score) {
+  if (!doneToday()) {
+    progress.streak = progress.lastDay === shift(TODAY, -1) ? progress.streak + 1 : 1;
+    progress.lastDay = TODAY;
+  }
+  progress.total += 1;
+  progress.coins = (progress.coins || 0) + score;
+  progress.history.unshift({ day: TODAY, topic: lesson.topic, title: lesson.title, score, of: lesson.quiz.length });
+  progress.history = progress.history.slice(0, 40);
+  save();
+}
+
+// ---------- sound ----------
+let soundOn = true;
+try { soundOn = localStorage.getItem("daily-index-sound") !== "off"; } catch {}
+let ac = null;
+const SFX = {
+  start: [[262, .06], [392, .06], [523, .12]],
+  select: [[660, .04], [990, .06]],
+  flip: [[440, .03], [554, .03], [659, .05]],
+  coin: [[988, .08], [1319, .3]],
+  miss: [[392, .1], [330, .1], [247, .24]],
+  clear: [[523, .1], [659, .1], [784, .1], [1047, .16], [784, .08], [1047, .36]],
+};
+function play(name) {
+  if (!soundOn) return;
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state === "suspended") ac.resume();
+    let t = ac.currentTime + .01;
+    for (const [f, d] of SFX[name]) {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = "square";
+      o.frequency.setValueAtTime(f, t);
+      g.gain.setValueAtTime(.05, t);
+      g.gain.setValueAtTime(.05, t + d * .7);
+      g.gain.linearRampToValueAtTime(0, t + d);
+      o.connect(g).connect(ac.destination);
+      o.start(t); o.stop(t + d + .01);
+      t += d;
+    }
+  } catch {}
+}
+function toggleSound() {
+  soundOn = !soundOn;
+  try { localStorage.setItem("daily-index-sound", soundOn ? "on" : "off"); } catch {}
+  play("select");
+  render();
+}
+
+// ---------- lesson loading ----------
+function validLesson(x) {
+  return x && typeof x.title === "string" && Array.isArray(x.cards) && x.cards.length >= 2 && Array.isArray(x.quiz) && x.quiz.length >= 2
+    && x.cards.every(c => c.front && c.back)
+    && x.quiz.every(q => q.q && Array.isArray(q.options) && q.options.length >= 2 && Number.isInteger(q.answer) && q.answer >= 0 && q.answer < q.options.length);
+}
+
+async function loadLesson(topicId) {
+  const topic = TOPICS.find(t => t.id === topicId);
+  if (sample) {
+    const avoid = progress.history.filter(h => h.topic === topicId).slice(0, 15).map(h => h.title);
+    const prompt = `You write a two-minute daily micro-lesson for a curious adult.
+Topic area: ${topic.name} (${topic.blurb}). Date: ${TODAY}.
+Pick ONE specific, surprising subject inside this area. Use only well-established, accurate facts.
+${avoid.length ? "Do not repeat these recent subjects: " + avoid.join("; ") + "." : ""}
+Return ONLY JSON in this exact shape:
+{"title": "subject in at most 6 words",
+ "hook": "one sentence on why it's interesting",
+ "cards": [3 items: {"front": "a term or short question, at most 8 words", "back": "1-2 plain sentences, at most 40 words"}],
+ "quiz": [3 items: {"q": "question answerable from the cards", "options": ["4 short options"], "answer": index 0-3 of the correct option, "why": "one short sentence"}]}
+Vary which option index is correct.`;
+    try {
+      const data = await sample.json(prompt, { modelTier: "default" });
+      if (validLesson(data)) return { ...data, topic: topicId, source: "claude" };
+    } catch (e) {
+      if (e && e.code === "not_granted") sample = null;
+    }
+  }
+  if (BANK[topicId]) return { ...BANK[topicId], topic: topicId, source: "bank" };
+  return null;
+}
+
+// ---------- pixel art ----------
+function sprite(rows, colors, size) {
+  const w = rows[0].length, h = rows.length;
+  let rects = "";
+  rows.forEach((r, y) => [...r].forEach((c, x) => { if (colors[c]) rects += `<rect x="${x}" y="${y}" width="1" height="1" fill="${colors[c]}"/>`; }));
+  return `<svg class="pix" viewBox="0 0 ${w} ${h}" width="${size}" height="${Math.round(size * h / w)}" aria-hidden="true">${rects}</svg>`;
+}
+const FLAME = ["...a....", "..aa....", "..aab...", ".aabba..", ".abbba.a", "aabcbbaa", "abcccba.", ".abcba.."];
+const COIN = ["..aaaa..", ".abbbba.", "abbcbbba", "abbcbbba", "abbcbbba", "abbcbbba", ".abbbba.", "..aaaa.."];
+const STAR = ["....a....", "...aaa...", "aaaaaaaaa", ".aaaaaaa.", "..aaaaa..", ".aaa.aaa.", ".aa...aa."];
+const flame = (s, on) => sprite(FLAME, on ? { a: "#e43b44", b: "#f77622", c: "#feae34" } : { a: "#3a3870", b: "#4c4aa8", c: "#5d5bc0" }, s);
+const coin = s => sprite(COIN, { a: "#b86f0a", b: "#f8c838", c: "#fff3a8" }, s);
+const star = (s, on) => sprite(STAR, { a: on ? "#f8c838" : "#2b2860" }, s);
+
+// ---------- rendering ----------
+const app = document.getElementById("app");
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtDay = k => new Date(k + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" }).toUpperCase();
+
+function render() {
+  if (view.name === "home") return renderHome();
+  if (view.name === "loading") return renderLoading();
+  if (view.name === "session") return renderSession();
+  if (view.name === "finish") return renderFinish();
+  if (view.name === "error") return renderError();
+}
+
+function hud() {
+  const s = liveStreak();
+  return `<div class="hud">
+    <div class="counters">
+      <div class="counter" title="Day streak">${flame(22, s > 0)}<b>${s}</b></div>
+      <div class="counter" title="Coins">${coin(20)}<b>×${progress.coins || 0}</b></div>
+    </div>
+    <button class="sound px ${soundOn ? "" : "off"}" id="sound" aria-pressed="${soundOn}">SOUND <b>${soundOn ? "ON" : "OFF"}</b></button>
+  </div>`;
+}
+
+function renderHome() {
+  const days = new Set(progress.history.map(h => h.day));
+  const week = Array.from({ length: 7 }, (_, i) => shift(TODAY, i - 6));
+  const available = TOPICS.filter(t => sample || BANK[t.id]);
+  const dateLabel = new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }).toUpperCase();
+  app.innerHTML = `
+    ${hud()}
+    <div class="title">
+      <span class="date">${esc(dateLabel)}</span>
+      <h1>Daily<span>Index</span></h1>
+      <span class="lbl blink">${doneToday() ? "Bonus round? Pick a world" : "Pick a world to start"}</span>
+    </div>
+    <div class="week" aria-label="Last 7 days">${week.map(k => {
+      const d = new Date(k + "T12:00:00");
+      return `<div class="day"><div class="blk ${days.has(k) ? "done" : ""} ${k === TODAY ? "today" : ""}">${days.has(k) ? coin(18) : d.getDate()}</div><span class="lbl">${d.toLocaleDateString(undefined, { weekday: "narrow" })}</span></div>`;
+    }).join("")}</div>
+    ${doneToday() ? `<div class="banner px">${star(20, true)}<span class="pixel">Today's stage clear. Streak safe.</span></div>` : ""}
+    <section class="section">
+      <h2>World select</h2>
+      <p class="note">★ marks today's pick. 3 cards, then a 3-question quiz. About two minutes. Each right answer earns a coin.</p>
+      <div class="worlds">${available.map(t => `
+        <button class="world px ${t.id === SUGGESTED ? "pick" : ""}" data-topic="${t.id}">
+          <span class="lbl">${t.id === SUGGESTED ? "★ " : ""}World ${worldOf(t.id)}</span>
+          <strong>${esc(t.name)}</strong><small>${esc(t.blurb)}</small>
+        </button>`).join("")}
+        <button class="world px warp" data-topic="random"><span class="lbl">? ? ?</span><strong>Warp zone</strong><small>A random world</small></button>
+      </div>
+      ${sample ? "" : `<p class="note">Playing built-in lessons. When Claude is available in this view, every world gets a fresh lesson each day.</p>`}
+    </section>
+    ${progress.history.length ? `<section class="section"><h2>Score table</h2><div class="scores px"><table>
+      <thead><tr><th>Date</th><th>Stage</th><th>Score</th></tr></thead>
+      <tbody>${progress.history.slice(0, 8).map(h => `<tr><td>${esc(fmtDay(h.day))}</td><td>${esc(h.title)}</td><td>${h.score}/${h.of}</td></tr>`).join("")}</tbody>
+    </table></div><p class="note">${progress.total} stage${progress.total === 1 ? "" : "s"} cleared in all.</p></section>` : ""}
+  `;
+  document.getElementById("sound").onclick = toggleSound;
+  app.querySelectorAll("[data-topic]").forEach(b => b.onclick = () => { play("start"); start(b.dataset.topic); });
+}
+
+async function start(topicId) {
+  if (topicId === "random") {
+    const pool = TOPICS.filter(t => sample || BANK[t.id]);
+    topicId = pool[Math.floor(Math.random() * pool.length)].id;
+  }
+  view = { name: "loading", topic: topicId };
+  render();
+  window.scrollTo({ top: 0 });
+  const lesson = await loadLesson(topicId);
+  if (!lesson) { view = { name: "error", topic: topicId }; return render(); }
+  const steps = [...lesson.cards.map((c, i) => ({ kind: "card", i })), ...lesson.quiz.map((q, i) => ({ kind: "quiz", i }))];
+  view = { name: "session", lesson, steps, at: 0, flipped: false, picked: null, score: 0 };
+  render();
+}
+
+function renderLoading() {
+  const t = TOPICS.find(t => t.id === view.topic);
+  app.innerHTML = `<div class="loading"><span class="lbl">World ${worldOf(t.id)}</span><h2>${esc(t.name)}</h2>
+    <div class="dots"><i></i><i></i><i></i></div>
+    <p class="note">Writing today's cards. This usually takes a few seconds.</p></div>`;
+}
+
+function renderError() {
+  app.innerHTML = `<div class="loading"><h2>No lesson this time</h2>
+    <p class="note">Claude didn't return a usable lesson for this world. Try again, or pick a world with a built-in lesson.</p>
+    <div class="actions"><button class="btn" id="retry">Try again</button><button class="btn ghost" id="home">World map</button></div></div>`;
+  document.getElementById("retry").onclick = () => { play("start"); start(view.topic); };
+  document.getElementById("home").onclick = () => { view = { name: "home" }; render(); };
+}
+
+function stepBar() {
+  const { steps, at } = view;
+  return `<div class="bar"><button class="back px" id="quit">◀ Map</button>
+    <div class="steps" aria-label="Step ${at + 1} of ${steps.length}">${steps.map((s, i) => `<i class="${s.kind === "quiz" ? "q" : ""} ${i <= at ? "on" : ""}"></i>`).join("")}</div>
+    <div class="counter" title="Coins this stage">${coin(18)}<b>×${view.score}</b></div></div>`;
+}
+
+function renderSession() {
+  const { lesson, steps, at } = view;
+  const step = steps[at];
+  const w = worldOf(lesson.topic);
+  let body;
+  if (step.kind === "card") {
+    const c = lesson.cards[step.i];
+    body = `
+      <div class="lesson-head"><span class="lbl">World ${w}-${step.i + 1} · Card ${step.i + 1} of ${lesson.cards.length}</span>
+        <h2>${esc(lesson.title)}</h2>${step.i === 0 && lesson.hook ? `<p>${esc(lesson.hook)}</p>` : ""}</div>
+      <div class="card ${view.flipped ? "flipped" : ""}" id="card" tabindex="0" role="button" aria-label="Flip card">
+        <div class="card-inner">
+          <div class="face front"><div class="top lbl"><span>Front</span><span>Tap to flip</span></div><div class="term">${esc(c.front)}</div></div>
+          <div class="face backside"><div class="top lbl"><span>Back</span><span>${step.i + 1}/${lesson.cards.length}</span></div><div class="term">${esc(c.front)}</div><p>${esc(c.back)}</p></div>
+        </div>
+      </div>
+      <div class="actions">
+        ${view.flipped ? `<button class="btn" id="next">${step.i === lesson.cards.length - 1 ? "Start quiz ▶" : "Next card ▶"}</button>`
+          : `<button class="btn" id="flip">Flip card</button><span class="hint">Guess first, then flip.</span>`}
+      </div>`;
+  } else {
+    const q = lesson.quiz[step.i];
+    const answered = view.picked !== null;
+    const right = view.picked === q.answer;
+    body = `
+      <div class="lesson-head"><span class="lbl">Boss quiz · ${step.i + 1} of ${lesson.quiz.length}</span><p class="q">${esc(q.q)}</p></div>
+      <div class="opts">${q.options.map((o, i) => {
+        const cls = answered ? (i === q.answer ? "right" : i === view.picked ? "wrong" : "dim") : "";
+        return `<button class="opt px ${cls}" data-i="${i}" ${answered ? "disabled" : ""}><span class="k">${"ABCD"[i] || i + 1}</span><span>${esc(o)}</span></button>`;
+      }).join("")}</div>
+      ${answered ? `<div class="verdict pop ${right ? "good" : "bad"}">${right ? `NICE! +1 ${coin(20)}` : "MISS!"}</div>
+        ${q.why ? `<p class="why px">${esc(q.why)}</p>` : ""}
+        <div class="actions"><button class="btn" id="next">${at === steps.length - 1 ? "Finish stage ▶" : "Next question ▶"}</button></div>` : ""}`;
+  }
+  app.innerHTML = stepBar() + body;
+  document.getElementById("quit").onclick = () => { view = { name: "home" }; render(); };
+  const flip = () => { play("flip"); view.flipped = !view.flipped; render(); document.getElementById("card")?.focus(); };
+  const card = document.getElementById("card");
+  if (card) { card.onclick = flip; card.onkeydown = e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); flip(); } }; }
+  document.getElementById("flip")?.addEventListener("click", e => { e.stopPropagation(); flip(); });
+  app.querySelectorAll(".opt").forEach(b => b.onclick = () => {
+    view.picked = Number(b.dataset.i);
+    const right = view.picked === lesson.quiz[step.i].answer;
+    if (right) view.score++;
+    play(right ? "coin" : "miss");
+    render();
+    document.getElementById("next")?.focus({ preventScroll: true });
+  });
+  document.getElementById("next")?.addEventListener("click", () => {
+    if (view.at === steps.length - 1) {
+      const first = !doneToday();
+      recordSession(lesson, view.score);
+      view = { name: "finish", lesson, score: view.score, first };
+      play("clear");
+    } else { view.at++; view.flipped = false; view.picked = null; play("select"); }
+    render();
+    window.scrollTo({ top: 0 });
+  });
+}
+
+function renderFinish() {
+  const { lesson, score, first } = view;
+  const of = lesson.quiz.length;
+  const s = liveStreak();
+  app.innerHTML = `${hud()}<div class="finish px">
+    <span class="lbl">World ${worldOf(lesson.topic)} · ${esc(lesson.title)}</span>
+    <h1>Stage clear!</h1>
+    <div class="stars" aria-label="${score} of ${of} stars">${Array.from({ length: of }, (_, i) => star(40, i < score)).join("")}</div>
+    <p class="note">${score === of ? "Perfect run." : score >= of - 1 ? "Nicely played." : "Good start. It'll stick better tomorrow."}
+      ${first ? `Day ${s} of your streak is logged.` : "Bonus round logged."}</p>
+    <div class="stats">
+      <div class="stat"><span class="lbl">Score</span><b>${score}/${of}</b></div>
+      <div class="stat"><span class="lbl">Coins</span><b>+${score}</b></div>
+      <div class="stat"><span class="lbl">Streak</span><b>${s}</b></div>
+    </div>
+    <div class="actions"><button class="btn" id="home">World map ▶</button></div>
+  </div>`;
+  document.getElementById("sound").onclick = toggleSound;
+  document.getElementById("home").onclick = () => { play("select"); view = { name: "home" }; render(); };
+}
+
+// ---------- boot ----------
+const local = readLocal();
+if (local && Array.isArray(local.history)) progress = normalize(local);
+render();
+
+(async () => {
+  if (!window.claude?.use) return;
+  const [s, db, user] = await Promise.all([claude.use("sample"), claude.use("db"), claude.use("user")]);
+  sample = s;
+  if (db && user) {
+    try {
+      const id = await user.id();
+      if (id) {
+        progressRef = db.collection("data/users/" + id).doc("progress");
+        const snap = await progressRef.get();
+        const remote = snap.data();
+        if (remote && Array.isArray(remote.history) && (remote.total || 0) >= (progress.total || 0)) { progress = normalize(remote); writeLocal(); }
+        else if (progress.total) await progressRef.set(progress);
+      }
+    } catch { progressRef = null; }
+  }
+  if (view.name === "home") render();
+})();
+</script>
